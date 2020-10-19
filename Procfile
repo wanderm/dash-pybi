@@ -1,1 +1,1 @@
-web: gunicorn wapp:server --log-level=debug --timeout 10
+web: gunicorn wapp:app --log-level=debug --timeout 10
