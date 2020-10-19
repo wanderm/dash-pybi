@@ -3463,5 +3463,5 @@ def update_deathplot(value, derived_virtual_selected_rows, selected_row_ids,
 
 if __name__ == "__main__":
     #app.run_server(debug=True)
-    app.run(debug=True, Threaded=True, port=5000)
+    app.run_server(debug=True, Threaded=True)
 
