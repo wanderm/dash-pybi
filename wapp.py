@@ -22,7 +22,7 @@ import dash_daq as daq
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
 
-#locale.setlocale(locale.LC_ALL,"pt_BR.utf8")
+locale.setlocale(locale.LC_ALL,"pt_BR.utf8")
 
 ###################################
 # Private function and variable
