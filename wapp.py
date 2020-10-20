@@ -1124,7 +1124,7 @@ app.layout = html.Div(
 			#"background": '#fff url(../assets/image-3.jpeg) no-repeat center left'},
 			"background": 'url(../assets/image-3.jpeg) center left, url(../assets/flipimage.jpg) center right',
 			"background-repeat": 'no-repeat'},
-                    children="BI/AI System Monitor"),
+                    children="BI/AI Global Monitor"),
 #                html.P(
 #                    id="description",
 #                    children=dcc.Markdown(
