@@ -1060,7 +1060,7 @@ app = dash.Dash(__name__,
       )
 
 #app.title = 'Coronavirus COVID-19 Global Monitor'
-app.title = 'BI/AI System Global Monitor'
+app.title = 'BI/AI Global Monitor'
 
 image_filename = './logotop.png' # replace with your own image
 encoded_image = base64.b64encode(open(image_filename, 'rb').read())
