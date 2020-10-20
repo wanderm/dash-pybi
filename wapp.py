@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 import math
 import os
 import base64
-import locale
 
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -21,8 +20,11 @@ import dash_html_components as html
 import dash_daq as daq
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
+from babel import Locale
+from babel.numbers import format_currency
 
 #locale.setlocale(locale.LC_ALL,"pt_BR.utf8")
+#locale.setlocale( locale.LC_ALL, '' )
 
 ###################################
 # Private function and variable
@@ -1022,6 +1024,8 @@ fig_death_curve_tab.update_layout(
 ##################################################################################################
 BS = "https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
 
+aa = (format_currency(fatur_p, 'R$', locale='pt_BR.utf8')).split(",", 1)[0]
+
 app = dash.Dash(__name__,
                 assets_folder='./assets/',
                 external_stylesheets=[BS],
@@ -1118,8 +1122,8 @@ app.layout = html.Div(
 				'inset 0 0 0 1px rgba(53,86,129, 0.4)', 
 			"border-radius": '0 10px 0 10px',
 			#"background": '#fff url(../assets/image-3.jpeg) no-repeat center left'},
-		 	"background": 'url(../assets/image-3.jpeg) center left, url(../assets/flipimage.jpg) center right',
-			"background-repeat": 'no-repeat'},	
+			"background": 'url(../assets/image-3.jpeg) center left, url(../assets/flipimage.jpg) center right',
+			"background-repeat": 'no-repeat'},
                     children="BI/AI System Monitor"),
 #                html.P(
 #                    id="description",
@@ -1212,8 +1216,7 @@ app.layout = html.Div(
                         html.H3(
                             style={'color': '#f03f42'},
                             children=[
-                                #'{:,d}'.format(faturamento),
-                                '${:n}'.format(faturamento),
+                                '{:s}'.format((format_currency(faturamento, 'R$', locale='pt_BR.utf8')).split(",", 1)[0], faturamento),
                                 html.P(
                                     #children='+ {:,d} in the past 24h ({:.1%})'.format(plusConfirmedNum, plusPercentNum1)
                                     #children='$ {:,d} ({:.1%})'.format(fatur_p, (fatur_p/faturamento))
@@ -1226,8 +1229,7 @@ app.layout = html.Div(
                             children=[
                                 html.P(
                                     style={'color': '#f03f42'},
-                                    #children='$ {:,d} ({:.1%})'.format(fatur_p, (fatur_p/faturamento))
-                                    children='${:n} ({:.1%})'.format(fatur_p, (fatur_p/faturamento))
+                                    children='{:s} ({:.1%})'.format((format_currency(fatur_p, 'R$', locale='pt_BR.utf8')).split(",", 1)[0], (fatur_p/faturamento))
                                 ),
                                 
                             ]
@@ -1238,7 +1240,7 @@ app.layout = html.Div(
                                 html.P(
                                     style={'color': '#f03f42'},
                                     #children='$ {:,d} ({:.1%})'.format(fatur_s, (fatur_s/faturamento))
-                                    children='${:n} ({:.1%})'.format(fatur_s, (fatur_s/faturamento))
+                                    children='{:s} ({:.1%})'.format((format_currency(fatur_s, 'R$', locale='pt_BR.utf8')).split(",", 1)[0], (fatur_s/faturamento))
                                 ),
                                 
                             ]
@@ -1249,7 +1251,7 @@ app.layout = html.Div(
                                 html.P(
                                     style={'color': '#f03f42'},
                                     #children='$ {:,d} ({:.1%})'.format(fatur_e, (fatur_e/faturamento))
-                                    children='${:n} ({:.1%})'.format(fatur_e, (fatur_e/faturamento))
+                                    children='{:s} ({:.1%})'.format((format_currency(fatur_e, 'R$', locale='pt_BR.utf8')).split(",", 1)[0], (fatur_e/faturamento))
                                 ),
                                 
                             ]
@@ -1444,9 +1446,9 @@ app.layout = html.Div(
                         dcc.Markdown(
                             '''
                             Mês anterior: **${:.0f}**
-
+			
                             Há 2 meses: **${:.0f}** 
-
+		
 			    '''.format(faturamento - (faturamento * 0.10), faturamento - (faturamento * 0.20)),	    
                         ) 
                 ),
@@ -1897,7 +1899,7 @@ app.layout = html.Div(
                             #'Developed by Jun with ❤️ in Sydney', 
                             #href='https://junye0798.com/', 
                             #target='_blank'
-                            'Developed by Wander' 
+                            'Adapted by Wander' 
                         ),
                     ],
                 ),
@@ -3464,6 +3466,5 @@ def update_deathplot(value, derived_virtual_selected_rows, selected_row_ids,
 
 
 if __name__ == "__main__":
-    #app.run_server(debug=True)
-    app.run_server(debug=True)
+    app.run_server(debug=True, port=8051)
 
