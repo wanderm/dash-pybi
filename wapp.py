@@ -22,7 +22,7 @@ import dash_daq as daq
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
 
-#locale.setlocale(locale.LC_ALL,"pt_BR.utf8")
+locale.setlocale(locale.LC_ALL,"pt_BR.utf8")
 
 ###################################
 # Private function and variable
@@ -1117,7 +1117,9 @@ app.layout = html.Div(
 			"box-shadow": 
 				'inset 0 0 0 1px rgba(53,86,129, 0.4)', 
 			"border-radius": '0 10px 0 10px',
-			"background": '#fff url(../assets/image-3.jpeg) no-repeat center left'},
+			#"background": '#fff url(../assets/image-3.jpeg) no-repeat center left'},
+		 	"background": 'url(../assets/image-3.jpeg) center left, url(../assets/flipimage.jpg) center right',
+			"background-repeat": 'no-repeat'},	
                     children="BI/AI System Monitor"),
 #                html.P(
 #                    id="description",
