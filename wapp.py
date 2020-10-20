@@ -1598,7 +1598,7 @@ app.layout = html.Div(
                                 #{'label':'Death Toll Trajectories', 'value':'Death Toll Trajectories'},
                                 {'label':'Cumulative Attendance', 'value':'Cumulative Attendance'},
                                 {'label':'Daily Attendance', 'value':'Daily Attendance'},
-                                {'label':'Confirmed Attendance Trajectories', 'value':'Confirmed Attendance Trajectories'},
+                                {'label':'Attendance Trajectories', 'value':'Attendance Trajectories'},
                                 {'label':'Lost Attendance Trajectories', 'value':'Lost Attendance Trajectories'},
                             ]
                         ),                                  
@@ -2078,7 +2078,7 @@ def render_content(tab):
                          config={"displayModeBar": False, "scrollZoom": False},
                 )
     #elif tab == 'Confirmed Case Trajectories':
-    elif tab == 'Confirmed Attendance Trajectories':
+    elif tab == 'Attendance Trajectories':
         return dcc.Graph(id='datatable-interact-logplot',
                          style={'height': '364px'},
                          figure=fig_curve_tab,
