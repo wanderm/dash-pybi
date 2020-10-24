@@ -485,7 +485,7 @@ optionList = [{'label':'All', 'value':'All'}] + optionList
 
 # region Data
 
-df = pd.read_csv("../../Databases/br.csv")  # data from https://simplemaps.com/data/us-cities
+df = pd.read_csv("./wraw/br.csv")  # data from https://simplemaps.com/data/us-cities
 color_prop = 'population'
 
 def get_data(state):
