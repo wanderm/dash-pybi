@@ -23,6 +23,16 @@ from dash.dependencies import Input, Output, State
 from babel import Locale
 from babel.numbers import format_currency
 
+# -----------
+# Cluster Map
+# -----------
+import json
+import dash_leaflet as dl
+import dash_leaflet.express as dlx
+#
+# End of Cluster Map
+# ------------------
+
 
 ###################################
 # Private function and variable
@@ -42,8 +52,10 @@ def  get_data_num(case_type):
 def make_country_table(countryName):
     '''This is the function for building df for Province/State of a given country'''
     countryTable = df_latest.loc[df_latest['Country/Region'] == countryName]
+
     # Suppress SettingWithCopyWarning
     pd.options.mode.chained_assignment = None
+
     countryTable['Faturamento'] = countryTable['fatur']
     countryTable['Ativas'] = countryTable['A']
     countryTable['Inaugurar'] = countryTable['I']
@@ -56,11 +68,12 @@ def make_country_table(countryName):
     countryTable['Chamados'] = countryTable['chamados']
 
     countryTable = countryTable[['Province/State', 'Faturamento', 'Ativas', 'Inaugurar', 'Analise', 'Clientes', 'Cli/Pop', 'Fat/Cli',  'Funcionarios', 'Func/Cli', 'Chamados', 'lat', 'lon']]
-
     countryTable = countryTable.sort_values(by=['Faturamento'], ascending=False).reset_index(drop=True)
+
     # Set row ids pass to selected_row_ids
     countryTable['id'] = countryTable['Province/State']
     countryTable.set_index('id', inplace=True, drop=False)
+
     # Turn on SettingWithCopyWarning
     pd.options.mode.chained_assignment = 'warn'
 
@@ -125,7 +138,6 @@ def make_dcc_country_tab(countryName, dataframe):
             )
     else:
         return dcc.Tab(
-                #id='tab-datatable-interact-location-{}'.format(countryName) if countryName != 'United States' else 'tab-datatable-interact-location-US',
                 id='tab-datatable-interact-location-{}'.format(countryName),
                 label=countryName,
                 value=countryName,
@@ -297,6 +309,7 @@ for f in chile_file_name:
 for f in spain_file_name:
     df_spain = pd.read_csv(os.path.join(path+'/wraw_data', f), encoding='UTF-8')
 
+
 df_latest = pd.concat([df_brazil, df_chile, df_germany, df_spain]).reset_index(drop=True)
 
 # Create data table to show in app
@@ -314,6 +327,7 @@ dfe[dfe_cols] = dfe[dfe_cols].applymap(np.int64)
 cols.remove('status')
 metadata = df_latest[cols].copy()
 dfx = df_latest.groupby([df_latest['Province/State'], 'state_name', 'Country/Region', 'status'])['status'].count().unstack().reset_index().fillna(0)
+
 # Transform float into integer
 dfx_cols = ['A','I','N']
 dfx[dfx_cols] = dfx[dfx_cols].applymap(np.int64)
@@ -325,7 +339,6 @@ df_latest = dfz.merge(metadata)
 df_latest[['population', 'population_proper', 'fatur', 'compras', 'funcion', 'clientes', 'chamados']].astype('int')
 
 df_latest[['Province/State', 'state_name', 'Country/Region', 'iso2', 'state_id']] = df_latest[['Province/State', 'state_name', 'Country/Region', 'iso2', 'state_id']].astype(str)
-
 df_latest.to_csv(os.path.join(path+'/wraw_data/output.csv'), encoding='utf-8')
 
 # Construct confirmed cases dataframe for line plot and 24-hour window case difference
@@ -340,15 +353,16 @@ df_deaths, plusDeathNum, plusPercentNum3 = get_data_num('deaths')
 # Construct remaining case dataframe for line plot and 24-hour window case difference
 df_remaining, plusRemainNum, plusRemainNum3 = get_data_num('remaining')
 
-#dfCase = df_latest.groupby([df_latest.city, 'state_name', 'country'], sort=False).sum().reset_index()
 dfCase = df_latest.groupby([df_latest['Province/State'], 'state_name', 'Country/Region', 'iso2', 'state_id', 'fatur', 'compras'], sort=False).sum().reset_index()
 
 # Rearrange columns 
 dfCase = dfCase[['Province/State', 'state_name', 'Country/Region', 'express', 'premium', 'smart', 'A', 'I', 'N', 'iso2', 'state_id', 'population', 'population_proper', 'fatur', 'compras', 'funcion', 'clientes', 'chamados']]
 
-
 dfCase = dfCase.sort_values(
     by=['Province/State'], ascending=False).reset_index(drop=True)
+
+# As lat and lon also underwent sum(), which is not desired, remove from this table.
+#dfCase = dfCase.drop(columns=['lat', 'lon'])
 
 # Grep lat and lon by the first instance to represent its Country/Region
 dfGPS = df_latest.groupby([df_latest['Province/State'], 'state_name', 'Country/Region'], sort=False).first().reset_index()
@@ -363,7 +377,6 @@ dfGPS = dfGPS.sort_values(
 WorldwildTable = pd.merge(dfCase, dfGPS)
 
 # Save numbers into variables to use in the app
-
 faturamento = WorldwildTable['fatur'].sum().astype(int)
 unidAtivas = WorldwildTable['A'].sum()
 unidInaug = WorldwildTable['I'].sum() 
@@ -465,11 +478,72 @@ optionList = sorted(optionList, key = lambda i: i['value'])
 # Add 'All' at the beginning of the list
 optionList = [{'label':'All', 'value':'All'}] + optionList
 
+#
+# ------------------
+# Cluster Map
+# ------------------
+
+# region Data
+
+df = pd.read_csv("../../Databases/br.csv")  # data from https://simplemaps.com/data/us-cities
+color_prop = 'population'
+
+def get_data(state):
+    df_state = df[df["state_id"] == state]  # pick one state
+    df_state = df_state[['lat', 'lng', 'city', 'population', 'fatur']]  # drop irrelevant columns
+    df_state = df_state[df_state[color_prop] > 0]  # drop abandoned cities
+    #df_state[color_prop] = np.log(df_state[color_prop])  # If commented, picks the real number, but need to change colorbar
+    df_state[color_prop] = np.log(df_state[color_prop])  # take log as the values varies A LOT
+    dicts = df_state.to_dict('rows')
+    for item in dicts:
+        item["tooltip"] = "{:.1f}".format(item[color_prop])  # bind tooltip
+        item["popup"] = item['city'] + '</br>' + item['fatur']  # bind popup
+        #marker.bindPopup(response[i].officer_name + '</br>' + response[i].description).openPopup();
+    geojson = dlx.dicts_to_geojson(dicts, lon="lng")  # convert to geojson
+    geobuf = dlx.geojson_to_geobuf(geojson)  # convert to geobuf
+    return geobuf
+
+def get_minmax(state):
+    df_state = df[df["state_id"] == state]  # pick one state
+    return dict(min=0, max=np.log(df_state[color_prop].max()))
+    #return dict(min=0, max=df_state[color_prop].max())
+
+
+# Setup a few color scales.
+# ------------------------
+csc_map = {"Rainbow": ['red', 'yellow', 'green', 'blue', 'purple'],
+           "Hot": ['yellow', 'red', 'black'],
+           "Viridis": "Viridis"}
+csc_options = [dict(label=key, value=json.dumps(csc_map[key])) for key in csc_map]
+default_csc = "Rainbow"
+dd_csc = dcc.Dropdown(options=csc_options, value=json.dumps(csc_map[default_csc]), id="dd_csc", clearable=False)
+
+
+# Setup state options.
+# -------------------
+states = df["state_id"].unique()
+state_names = [df[df["state_id"] == state]["state_name"].iloc[0] for state in states]
+state_options = [dict(label=state_names[i], value=state) for i, state in enumerate(states)]
+default_state = "SP"
+dd_state = dcc.Dropdown(options=state_options, value=default_state, id="dd_state", clearable=False)
+
+# endregion
+
+#
+# -------------------
+# End of Cluster Map
+# -------------------
+#
+
 
 
 #############################################################################################
 # Start to make plots
 #############################################################################################
+
+# -----------
+# Rate Figure
+# -----------
 
 # Line plot for death rate cases
 # Set up tick scale based on death case number of Mainland China
@@ -542,6 +616,20 @@ fig_rate.update_layout(
     paper_bgcolor='#ffffff',
     font=dict(color='#292929', size=10)
 )
+
+# ------------------
+# End of Rate Figure
+# ------------------
+
+
+# --------------
+# Summary Figure
+# --------------
+
+# Default cumulative plot for tab
+# Default plot is an empty canvas
+#df_region_tab = pd.read_csv('./cumulative_data/{}.csv'.format('Worldwide'))
+#df_region_tab = df_region_tab.astype({'Date_last_updated_AEDT': 'datetime64', 'date_day': 'datetime64'})
 
 # Create empty figure canvas
 fig_cumulative_tab = go.Figure()
@@ -699,8 +787,6 @@ for regionName in ['Worldwide', 'Brazil', 'Chile', 'Germany', 'Spain']:
 fig_curve_tab.update_xaxes(range=[0, daysOutbreak-19])
 fig_curve_tab.update_yaxes(range=[1.9, 7.5])
 fig_curve_tab.update_layout(
-        #xaxis_title="Number of day since 3rd death case",
-        #yaxis_title="Confirmed cases (Logarithmic)",
         xaxis_title="Number of clients",
         yaxis_title="Faturamento (Logarithmic)",
         margin=go.layout.Margin(
@@ -847,24 +933,46 @@ fig_death_curve_tab.update_layout(
         font=dict(color='#292929', size=10)
     )
 
+# ---------------------
+# End of Summary Figure
+# ---------------------
 
 
 ##################################################################################################
 # Start dash app
 ##################################################################################################
 BS = "https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+chroma = "https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.1.0/chroma.min.js"
 
-aa = (format_currency(fatur_p, 'R$', locale='pt_BR.utf8')).split(",", 1)[0]
+minmax = get_minmax(default_state)
+
+# Create geojson for Cluster Map.
+geojson = dl.GeoJSON(data=get_data(default_state), id="geojson", format="geobuf",
+                     zoomToBounds=True,  # when true, zooms to bounds when data changes
+                     cluster=True,  # when true, data are clustered
+                     clusterToLayer=dlx.scatter.cluster_to_layer,  # how to draw clusters
+                     zoomToBoundsOnClick=True,  # when true, zooms to bounds of feature (e.g. cluster) on click
+                     options=dict(pointToLayer=dlx.scatter.point_to_layer),  # how to draw points
+                     superClusterOptions=dict(radius=150),  # adjust cluster size
+                     hideout=dict(colorscale=csc_map[default_csc], color_prop=color_prop, **minmax))
+
+# Create a colorbar for Cluster Map.
+colorbar = dl.Colorbar(colorscale=csc_map[default_csc], id="colorbar", width=20, height=150, **minmax)
+
 
 app = dash.Dash(__name__,
                 assets_folder='./assets/',
                 external_stylesheets=[BS],
+		external_scripts=[chroma],
+		#prevent_initial_callbacks=True,
       )
 
 app.title = 'BI/AI Global Monitor'
 
 image_filename = './logotop.png' # replace with your own image
 encoded_image = base64.b64encode(open(image_filename, 'rb').read())
+
+# Section for Google analytic and donation #
 
 
 server = app.server
@@ -1041,7 +1149,6 @@ app.layout = html.Div(
                             children=[
                                 '{:,d}'.format(unidAtivas),
                                 html.P(
-                                    #children='+ {:,d} ({:.1%})'.format(unidPremium, unidPremium/unidAtivas)
                                 ),
                                 
                             ]
@@ -1343,7 +1450,7 @@ app.layout = html.Div(
                             options=[
                                 {'label':'Cumulative Attendance', 'value':'Cumulative Attendance'},
                                 {'label':'Daily Attendance', 'value':'Daily Attendance'},
-                                {'label':'Attendance Trajectories', 'value':'Attendance Trajectories'},
+                                {'label':'Confirmed Attendance Trajectories', 'value':'Confirmed Attendance Trajectories'},
                                 {'label':'Lost Attendance Trajectories', 'value':'Lost Attendance Trajectories'},
                             ]
                         ),                                  
@@ -1515,12 +1622,30 @@ app.layout = html.Div(
                 ),
             ]
         ),
+# -----------
+# Cluster Map
+# -----------
+        html.Div(
+            children=[
+                dl.Map(
+                    [dl.TileLayer(), geojson, colorbar]
+                    ),
+                    html.Div(
+                        [dd_state, dd_csc],
+                        style={"position": "relative", "bottom": "80px", "left": "10px", "z-index": "1000", "width": "200px"}
+                    )
+                ],
+                style={'width': '90%', 'height': '60vh', 'margin': "auto", "display": "block", "position": "relative"}
+        ),
+# ------------------
+# End of Cluster Map
+# ------------------
+
         html.Div(
             className='footer-container',
             id='my-footer',
             children=[
                 html.P(
-                    #'Together we stop the spread',
                     'Bringing wisdom to Business Intelligence',
                 ),
                 html.P(
@@ -1657,7 +1782,7 @@ def render_content(tab):
                          figure=fig_daily_tab,
                          config={"displayModeBar": False, "scrollZoom": False},
                 )
-    elif tab == 'Attendance Trajectories':
+    elif tab == 'Confirmed Attendance Trajectories':
         return dcc.Graph(id='datatable-interact-logplot',
                          style={'height': '364px'},
                          figure=fig_curve_tab,
@@ -1761,7 +1886,6 @@ def render_combined_line_plot(log):
         # Set tick label accordingly
         #ticktext=["{:.0f}k".format(i/1000) for i in tickList]
     ),
-#    yaxis_title="Total Confirmed Case Number",
     xaxis=dict(
         showline=False, linecolor='#272e3e',
         showgrid=False,
@@ -1841,6 +1965,7 @@ def render_ternary_plot(value):
         fig_ternary = px.scatter_ternary(df_ternary, a="Ativas_P", b="Ativas_S", c="Ativas_E", template='plotly_white', 
             size=[i**(1/3) for i in df_ternary['Ativas_P'] + df_ternary['Ativas_S'] + df_ternary['Ativas_E']],
             color='Faturamento',
+	    labels = {"Ativas_P": "Pr", "Ativas_S": "Sm", "Ativas_E": "Ex", "Faturamento": "$Fat"},
             color_continuous_scale=px.colors.sequential.Aggrnyl,
         )
         fig_ternary.update_traces(
@@ -1875,6 +2000,7 @@ def render_ternary_plot(value):
             size=[i**(1/3) for i in df_ternary['Ativas_P'] + df_ternary['Ativas_S'] + df_ternary['Ativas_E']],
             opacity=[1 if i == value else 0.1 for i in WorldwildTable['Country/Region']],
             color='Faturamento',
+	    labels = {"Ativas_P": "Pr", "Ativas_S": "Sm", "Ativas_E": "Ex", "Faturamento": "$Fat"},
             color_continuous_scale=px.colors.sequential.Aggrnyl,
         )
         fig_ternary.update_traces(
@@ -2147,12 +2273,10 @@ def update_lineplot(
     fig3.add_trace(go.Scatter(x=df_region['date_day'],
                            y=df_region['Confirmed'],
                            mode='lines+markers',
-                           #name='Confirmed case',
                            name='Confirmed attendances',
                            line=dict(color='#f03f42', width=2),
                            text=[datetime.strftime(d, '%b %d %Y GMT+10')
                                                    for d in df_region['date_day']],
-                           #hovertext=['{} Confirmed<br>{:,d} cases<br>'.format(
                            hovertext=['{} Confirmed<br>{:,d} attendances<br>'.format(
                                Region, i) for i in df_region['Confirmed']],
                            hovertemplate=
@@ -2161,7 +2285,6 @@ def update_lineplot(
     fig3.add_trace(go.Scatter(x=df_region['date_day'],
                            y=df_region['Recovered'],
                            mode='lines+markers',
-                           #name='Recovered case',
                            name='Recovered attendances',
                            line=dict(color='#2ecc77', width=2),
                            text=[datetime.strftime(d, '%b %d %Y GMT+10')
@@ -2174,12 +2297,10 @@ def update_lineplot(
     fig3.add_trace(go.Scatter(x=df_region['date_day'],
                            y=df_region['Deaths'],
                            mode='lines+markers',
-                           #name='Death case',
                            name='Lost attendances',
                            line=dict(color='#7f7f7f', width=2),
                            text=[datetime.strftime(d, '%b %d %Y GMT+10')
                                                    for d in df_region['date_day']],
-                           #hovertext=['{} Deaths<br>{:,d} cases<br>'.format(
                            hovertext=['{} Lost<br>{:,d} attendances<br>'.format(
                                Region, i) for i in df_region['Deaths']],
                            hovertemplate=
@@ -2311,7 +2432,6 @@ def update_dailyplot(
     
     df_region = df_region.sort_values(by='date_day')
     df_region['rolling_mean'] = df_region['New'].rolling(7).mean()
-    #df_region['rolling_mean'] = df_region['rolling_mean'].fillna(value=0)
 
 
     # Create empty figure canvas
@@ -2321,12 +2441,10 @@ def update_dailyplot(
                                 y=df_region['New'],
                                 fill='tozeroy',
                                 mode='lines',
-                                #name='Daily confirmed case',
                                 name='Daily confirmed attendances',
                                 line=dict(color='#f03f42', width=0),
                                 text=[datetime.strftime(d, '%b %d %Y GMT+10')
                                                      for d in df_region['date_day']],
-                                #hovertext=['Daily confirmed cases {:,d} <br>'.format(
                                 hovertext=['Daily confirmed attendances {:,d} <br>'.format(
                                   i) for i in df_region['New']],
                                 hovertemplate=
@@ -2895,8 +3013,6 @@ def update_deathplot(value, derived_virtual_selected_rows, selected_row_ids,
     fig_curve_death.update_xaxes(range=[0, elapseDay-19])
     fig_curve_death.update_yaxes(range=[0.477, 5.8])
     fig_curve_death.update_layout(
-        #xaxis_title="Number of days since 3 deaths recorded",
-        #yaxis_title="Death cases (Logarithmic)",
         xaxis_title="Number of clients",
         yaxis_title="Lost cases (Logarithmic)",
         margin=go.layout.Margin(
@@ -2911,7 +3027,6 @@ def update_deathplot(value, derived_virtual_selected_rows, selected_row_ids,
             y=.4,
             xref="paper",
             yref="paper",
-            #text=Region if Region in set(dfs_curve['Region']) else "Not over 3 death cases",
             text=Region if Region in set(dfs_curve['Region']) else "Not over 10 clients",
             opacity=0.5,
             font=dict(family='Roboto, sans-serif',
@@ -2944,6 +3059,27 @@ def update_deathplot(value, derived_virtual_selected_rows, selected_row_ids,
 
     return fig_curve_death
 
+# -----------
+# Cluster Map
+# -----------
+
+@app.callback(
+    [Output("geojson", "hideout"),
+     Output("geojson", "data"),
+     Output("colorbar", "colorscale"),
+     Output("colorbar", "min"),
+     Output("colorbar", "max")],
+    [Input("dd_csc", "value"),
+     Input("dd_state", "value")])
+
+def update(csc, state):
+    csc, data, mm = json.loads(csc), get_data(state), get_minmax(state)
+    hideout = dict(colorscale=csc, color_prop=color_prop, popup_prop='city', **mm)
+    return hideout, data, csc, mm["min"], mm["max"]
+
+# ------------------
+# End of Cluster Map
+# ------------------
 
 
 if __name__ == "__main__":
