@@ -1414,7 +1414,7 @@ app.layout = html.Div(
                             
                                     **Lost rate = (Lost/Confirmed attendances) x 100%**
                                     
-                                    Note that this is only a conservative estimation. The real death rate can only be 
+                                    Note that this is only a conservative estimation. The real lost rate can only be 
                                     revealed as all cases are resolved. 
                                     ''',
                                 )
